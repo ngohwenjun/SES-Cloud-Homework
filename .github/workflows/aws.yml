@@ -53,8 +53,8 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
-    - name:  Set working directory
-      run: cd src
+    # - name:  Set working directory
+    #   run: cd src
     # - name: Setup dependencies and build
     #   run: echo "install dep and compile/build"
 
@@ -62,13 +62,29 @@ jobs:
       uses: burnett01/rsync-deployments@5.1
       with:
         switches: -avzr --delete
-        path: ./*
+        path: ./src/*
         # remote_path: /var/www/html/<your_project_directory>/
         # remote_host: <your_ec2_ip_address>
         remote_path: /home/ec2-user/nginx-app/app/
         remote_host: 3.107.173.186
         remote_user: ec2-user
         remote_key: "${{ secrets.SSH_PRIVATE_KEY }}"
+
+    - name: Restart nginx in remote server
+      run: |
+        echo "${{ secrets.SSH_PRIVATE_KEY }}" > private_key.pem
+        chmod 600 private_key.pem
+        # Create known_hosts file if it doesn't exist
+        mkdir -p /home/runner/.ssh
+        touch /home/runner/.ssh/known_hosts
+        
+        # Clear old key from known_hosts
+        ssh-keygen -R 3.107.173.186 >> /home/runner/.ssh/known_hosts
+        # Run the SSH command
+        ssh -i private_key.pem -o StrictHostKeyChecking=no ec2-user@3.107.173.186 \
+        "sudo docker restart nginx nginx2"          
+      env:
+        SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
 
     # - name: Configure AWS credentials
     #   uses: aws-actions/configure-aws-credentials@v1
